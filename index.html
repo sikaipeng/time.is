@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>00:00 | 本地時間</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'><circle cx='16' cy='16' r='14' fill='none' stroke='%232c3e50' stroke-width='2'/><line x1='16' y1='16' x2='16' y2='8' stroke='%232c3e50' stroke-width='2' stroke-linecap='round'/><line x1='16' y1='16' x2='24' y2='16' stroke='%232c3e50' stroke-width='1.5' stroke-linecap='round'/></svg>" type="image/svg+xml">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600&family=Roboto+Mono:wght@700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: #f8f9fa;
+            min-height: 100vh;
+            color: #333;
+            position: relative;
+            overflow: hidden;
+            padding: 0;
+            margin: 0;
+            font-family: 'Segoe UI', Roboto, 'Microsoft JhengHei', '微軟正黑體', 'Microsoft YaHei', '微软雅黑', Arial, sans-serif;
+        }
+
+        .tag-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 5;
+        }
+
+        .time-wrapper {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 20;
+        }
+
+        .time-container {
+            text-align: center;
+            background: white;
+            padding: 40px 60px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+            max-width: 500px;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            min-width: 320px;
+        }
+
+        .clock {
+            font-size: 6vw;
+            font-weight: 700;
+            line-height: 1.2;
+            color: #2c3e50;
+            margin: 0;
+            letter-spacing: 0;
+            text-align: center;
+            width: 100%;
+            font-family: 'Roboto Mono', monospace;
+            font-variant-numeric: tabular-nums;
+            white-space: nowrap;
+            min-width: 280px;
+        }
+
+        .date {
+            font-size: 1.8vw;
+            color: #4a6584;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+            font-family: 'Montserrat', Arial, Helvetica, sans-serif;
+            min-width: 200px;
+        }
+
+        .timezone {
+            font-size: 1.2vw;
+            color: #718096;
+            font-weight: 400;
+            opacity: 0.9;
+            font-family: 'Montserrat', Arial, Helvetica, sans-serif;
+            min-width: 200px;
+        }
+
+        .status-info {
+            border-top: 1px solid #f0f2f5;
+            padding-top: 16px;
+            width: 100%;
+            margin-top: 8px;
+            min-width: 280px;
+        }
+
+        .status {
+            font-size: 14px;
+            color: #4a6584;
+            opacity: 1;
+            margin-bottom: 6px;
+            font-weight: 500;
+            font-family: 'Montserrat', Arial, Helvetica, sans-serif;
+        }
+
+        .calibration {
+            font-size: 12px;
+            color: #9aa5b1;
+            line-height: 1.4;
+            font-family: 'Montserrat', Arial, Helvetica, sans-serif;
+        }
+
+        .city-tag {
+            position: absolute;
+            color: #6c757d;
+            opacity: 0.7;
+            font-weight: 500;
+            cursor: pointer;
+            line-height: 1.2;
+            white-space: nowrap;
+            transition: all 0.2s ease-in-out;
+        }
+
+        .city-tag:hover {
+            color: #2563eb;
+            opacity: 1;
+            font-weight: 600;
+            text-shadow: 0 0 8px rgba(37, 99, 235, 0.4);
+            transform: scale(1.08) rotate(var(--rotate, 0deg));
+        }
+
+        .city-tag.active {
+            color: #2563eb;
+            opacity: 1;
+            font-weight: 600;
+            text-shadow: 0 0 8px rgba(37, 99, 235, 0.4);
+        }
+
+        @media (max-width: 768px) {
+            .time-container {
+                padding: 30px 20px;
+                min-width: 280px;
+            }
+            .clock {
+                font-size: 15vw;
+                letter-spacing: 0;
+                min-width: 240px;
+            }
+            .date {
+                font-size: 4vw;
+            }
+            .timezone {
+                font-size: 3vw;
+            }
+            .city-tag {
+                font-size: 4.5vw !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="tag-container" id="tagContainer"></div>
+    <div class="time-wrapper">
+        <div class="time-container">
+            <div id="clock" class="clock">00:00:00</div>
+            <div id="date" class="date"></div>
+            <div id="timezone" class="timezone"></div>
+            <div class="status-info">
+                <div id="status" class="status">當前城市: 本地 | 顯示系統時間</div>
+                <div id="calibration" class="calibration">正在同步伺服器時間...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const AppConfig = {
+            lang: {
+                'zh-HK': {
+                    currentCity: '當前城市',
+                    localCity: '本地',
+                    systemTime: '顯示系統時間',
+                    timeSynced: '時間已同步',
+                    syncingServerTime: '正在同步伺服器時間...',
+                    syncSuccess: '同步成功',
+                    syncFailed: '同步失敗',
+                    syncTimeout: '請求超時，使用系統時間',
+                    httpError: 'HTTP 錯誤! 狀態代碼',
+                    missingTimestamp: '回應中缺少 timestamp 欄位',
+                    timeSuffix: '時間',
+                    dateSeparator: '日 '
+                },
+                'zh-CN': {
+                    currentCity: '当前城市',
+                    localCity: '本地',
+                    systemTime: '显示系统时间',
+                    timeSynced: '时间已同步',
+                    syncingServerTime: '正在同步服务器时间...',
+                    syncSuccess: '同步成功',
+                    syncFailed: '同步失败',
+                    syncTimeout: '请求超时，使用系统时间',
+                    httpError: 'HTTP 错误! 状态代码',
+                    missingTimestamp: '响应中缺少 timestamp 字段',
+                    timeSuffix: '时间',
+                    dateSeparator: '日 '
+                },
+                'en-US': {
+                    currentCity: 'Current City',
+                    localCity: 'Local',
+                    systemTime: 'Showing System Time',
+                    timeSynced: 'Time Synced',
+                    syncingServerTime: 'Syncing server time...',
+                    syncSuccess: 'Sync Success',
+                    syncFailed: 'Sync Failed',
+                    syncTimeout: 'Request timeout, using system time',
+                    httpError: 'HTTP Error! Status Code',
+                    missingTimestamp: 'Missing timestamp field in response',
+                    timeSuffix: 'Time',
+                    dateSeparator: ''
+                }
+            },
+            cityTimezones: [
+                { 'zh-HK': '洛杉磯', 'zh-CN': '洛杉矶', 'en-US': 'Los Angeles', timezone: 'America/Los_Angeles' },
+                { 'zh-HK': '舊金山', 'zh-CN': '旧金山', 'en-US': 'San Francisco', timezone: 'America/Los_Angeles' },
+                { 'zh-HK': '溫哥華', 'zh-CN': '温哥华', 'en-US': 'Vancouver', timezone: 'America/Vancouver' },
+                { 'zh-HK': '芝加哥', 'zh-CN': '芝加哥', 'en-US': 'Chicago', timezone: 'America/Chicago' },
+                { 'zh-HK': '紐約', 'zh-CN': '纽约', 'en-US': 'New York', timezone: 'America/New_York' },
+                { 'zh-HK': '多倫多', 'zh-CN': '多伦多', 'en-US': 'Toronto', timezone: 'America/Toronto' },
+                { 'zh-HK': '里約熱內盧', 'zh-CN': '里约热内卢', 'en-US': 'Rio de Janeiro', timezone: 'America/Sao_Paulo' },
+                { 'zh-HK': '聖保羅', 'zh-CN': '圣保罗', 'en-US': 'Sao Paulo', timezone: 'America/Sao_Paulo' },
+                { 'zh-HK': '倫敦', 'zh-CN': '伦敦', 'en-US': 'London', timezone: 'Europe/London' },
+                { 'zh-HK': '巴黎', 'zh-CN': '巴黎', 'en-US': 'Paris', timezone: 'Europe/Paris' },
+                { 'zh-HK': '柏林', 'zh-CN': '柏林', 'en-US': 'Berlin', timezone: 'Europe/Berlin' },
+                { 'zh-HK': '羅馬', 'zh-CN': '罗马', 'en-US': 'Rome', timezone: 'Europe/Rome' },
+                { 'zh-HK': '莫斯科', 'zh-CN': '莫斯科', 'en-US': 'Moscow', timezone: 'Europe/Moscow' },
+                { 'zh-HK': '杜拜', 'zh-CN': '迪拜', 'en-US': 'Dubai', timezone: 'Asia/Dubai' },
+                { 'zh-HK': '新德里', 'zh-CN': '新德里', 'en-US': 'New Delhi', timezone: 'Asia/Kolkata' },
+                { 'zh-HK': '曼谷', 'zh-CN': '曼谷', 'en-US': 'Bangkok', timezone: 'Asia/Bangkok' },
+                { 'zh-HK': '新加坡', 'zh-CN': '新加坡', 'en-US': 'Singapore', timezone: 'Asia/Singapore' },
+                { 'zh-HK': '北京', 'zh-CN': '北京', 'en-US': 'Beijing', timezone: 'Asia/Shanghai' },
+                { 'zh-HK': '上海', 'zh-CN': '上海', 'en-US': 'Shanghai', timezone: 'Asia/Shanghai' },
+                { 'zh-HK': '香港', 'zh-CN': '香港', 'en-US': 'Hong Kong', timezone: 'Asia/Hong_Kong' },
+                { 'zh-HK': '台北', 'zh-CN': '台北', 'en-US': 'Taipei', timezone: 'Asia/Taipei' },
+                { 'zh-HK': '東京', 'zh-CN': '东京', 'en-US': 'Tokyo', timezone: 'Asia/Tokyo' },
+                { 'zh-HK': '首爾', 'zh-CN': '首尔', 'en-US': 'Seoul', timezone: 'Asia/Seoul' },
+                { 'zh-HK': '悉尼', 'zh-CN': '悉尼', 'en-US': 'Sydney', timezone: 'Australia/Sydney' },
+                { 'zh-HK': '墨爾本', 'zh-CN': '墨尔本', 'en-US': 'Melbourne', timezone: 'Australia/Melbourne' }
+            ],
+            compensation: {
+                threshold: 100,
+                lowRatio: 0.10,
+                highRatio: 0.15,
+                firstLoadRatio: 0.10
+            },
+            api: {
+                timestampUrl: 'https://lamhoi.co.uk/timestamp',
+                timeout: 5000
+            },
+            selectors: {
+                tagContainer: '#tagContainer',
+                clock: '#clock',
+                date: '#date',
+                timezone: '#timezone',
+                status: '#status',
+                calibration: '#calibration',
+                timeWrapper: '.time-wrapper'
+            },
+            constants: {
+                tagMaxRetry: 100,
+                tagSpacing: 10,
+                tagRotationRange: { min: -8, max: 16 },
+                tagFontSizeRange: { min: 16, max: 26 },
+                safeAreaPadding: 20,
+                safeAreaMargin: 40
+            }
+        };
+
+        // 工具函數
+        const Utils = {
+            formatTwoDigits: (num) => num.toString().padStart(2, '0'),
+            // 偵測瀏覽器語言並對應到應用語言設定
+            detectLanguage: () => {
+                const langMap = {
+                    'zh-HK': /zh-(hk|tw)/i,
+                    'zh-CN': /zh/i,
+                    'en-US': /en/i
+                };
+                const userLang = navigator.language || navigator.userLanguage;
+                return Object.entries(langMap).find(([code, regex]) => regex.test(userLang))?.[0] || 'zh-HK';
+            },
+            // 帶超時機制的Promise封裝
+            withTimeout: (promise, timeoutMs, errorMsg) => 
+                Promise.race([
+                    promise,
+                    new Promise((_, reject) => setTimeout(() => reject(new Error(errorMsg)), timeoutMs))
+                ]),
+            // 檢測兩個元素是否重疊
+            isOverlap: (rectA, rectB, spacing = 0) => 
+                !(
+                    rectA.right + spacing < rectB.left ||
+                    rectA.left - spacing > rectB.right ||
+                    rectA.bottom + spacing < rectB.top ||
+                    rectA.top - spacing > rectB.bottom
+                ),
+            getRandom: (min, max) => Math.random() * (max - min) + min,
+            getRandomRotation: () => Utils.getRandom(
+                AppConfig.constants.tagRotationRange.min,
+                AppConfig.constants.tagRotationRange.max
+            ),
+            getRandomFontSize: () => Utils.getRandom(
+                AppConfig.constants.tagFontSizeRange.min,
+                AppConfig.constants.tagFontSizeRange.max
+            )
+        };
+
+        // 應用狀態 - 集中管理全域狀態
+        const AppState = {
+            activeCity: null,
+            serverBaseTime: null,
+            localBaseTime: null,
+            localBasePerformanceTime: null,
+            isFirstLoad: true,
+            userLang: null,
+            lang: null,
+            pageInitPerformanceTime: performance.now(),
+            pageInitLocalTime: Date.now()
+        };
+
+        // 時間服務 - 處理所有時間相關邏輯
+        const TimeService = {
+            // 取得當前時間（優先使用伺服器同步時間，否則使用本地時間）
+            getCurrentTime: () => {
+                if (AppState.serverBaseTime && AppState.localBaseTime && AppState.localBasePerformanceTime) {
+                    const timeElapsed = performance.now() - AppState.localBasePerformanceTime;
+                    return new Date(AppState.serverBaseTime + timeElapsed);
+                }
+                return new Date();
+            },
+            // 格式化完整時間（時:分:秒）
+            formatFullTime: (timezone) => {
+                const options = {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                    hour12: false,
+                    timeZone: timezone,
+                    localeMatcher: 'best fit'
+                };
+                return TimeService.getCurrentTime()
+                    .toLocaleTimeString(AppState.userLang, options)
+                    .replace(/\//g, ':');
+            },
+            // 格式化標題時間（時:分）
+            formatTitleTime: (timezone) => {
+                const currentTime = TimeService.getCurrentTime();
+                const formatter = new Intl.DateTimeFormat(AppState.userLang, {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: false,
+                    timeZone: timezone
+                });
+                const parts = formatter.formatToParts(currentTime);
+                const hour = parts.find(p => p.type === 'hour').value;
+                const minute = parts.find(p => p.type === 'minute').value;
+                return `${hour}:${minute}`;
+            },
+            // 格式化日期（含星期、年月日）
+            formatDate: (timezone) => {
+                const options = {
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    weekday: 'long',
+                    timeZone: timezone,
+                    localeMatcher: 'best fit'
+                };
+                return TimeService.getCurrentTime()
+                    .toLocaleDateString(AppState.userLang, options)
+                    .replace('日', AppState.lang.dateSeparator);
+            },
+            // 取得時區文字（含UTC偏移量）
+            getTimezoneText: (timezone) => {
+                const currentTime = TimeService.getCurrentTime();
+                const utcDate = new Date(currentTime.toLocaleString('en-US', { timeZone: 'UTC' }));
+                const tzDate = new Date(currentTime.toLocaleString('en-US', { timeZone: timezone }));
+                const offsetMs = tzDate.getTime() - utcDate.getTime();
+                const offsetMinutes = Math.round(offsetMs / (1000 * 60));
+                const offsetHours = Math.floor(offsetMinutes / 60);
+                const offsetMins = Math.abs(offsetMinutes % 60);
+
+                const offsetStr = offsetHours === 0 && offsetMins === 0 
+                    ? 'UTC±00:00' 
+                    : `UTC${offsetHours >= 0 ? '+' : '-'}${Utils.formatTwoDigits(Math.abs(offsetHours))}:${Utils.formatTwoDigits(offsetMins)}`;
+
+                return `${timezone} | ${offsetStr}`;
+            },
+            // 取得網路延遲補償比例
+            getCompensationRatio: (latency) => 
+                latency <= AppConfig.compensation.threshold
+                    ? AppConfig.compensation.lowRatio
+                    : AppConfig.compensation.highRatio,
+            // 同步伺服器時間
+            syncServerTime: async () => {
+                const requestStartTime = Date.now();
+                const statusEl = document.querySelector(AppConfig.selectors.status);
+                const calibrationEl = document.querySelector(AppConfig.selectors.calibration);
+
+                try {
+                    const response = await Utils.withTimeout(
+                        fetch(AppConfig.api.timestampUrl, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({}),
+                            cache: 'no-store'
+                        }),
+                        AppConfig.api.timeout,
+                        AppState.lang.syncTimeout
+                    );
+
+                    if (!response.ok) throw new Error(`${AppState.lang.httpError}: ${response.status}`);
+                    const data = await response.json();
+                    if (!data.timestamp) throw new Error(AppState.lang.missingTimestamp);
+
+                    const rawServerTime = Math.round(parseFloat(data.timestamp) * 1000);
+                    const roundTripLatency = Date.now() - requestStartTime;
+                    const ratio = AppState.isFirstLoad 
+                        ? AppConfig.compensation.firstLoadRatio 
+                        : TimeService.getCompensationRatio(roundTripLatency);
+                    const compensation = roundTripLatency * ratio;
+
+                    AppState.serverBaseTime = rawServerTime + compensation;
+                    AppState.localBaseTime = Date.now();
+                    AppState.localBasePerformanceTime = performance.now();
+                    AppState.isFirstLoad = false;
+
+                    statusEl.textContent = `${AppState.lang.currentCity}: ${AppState.activeCity.name} | ${AppState.lang.timeSynced}`;
+                    calibrationEl.textContent = AppState.lang.syncSuccess;
+                } catch (error) {
+                    statusEl.textContent = `${AppState.lang.currentCity}: ${AppState.activeCity.name} | ${AppState.lang.systemTime}`;
+                    calibrationEl.textContent = `${AppState.lang.syncFailed}: ${error.message}`;
+                } finally {
+                    UIService.updateClock();
+                }
+            }
+        };
+
+        // UI服務 - 處理所有介面相關操作
+        const UIService = {
+            // 建立城市標籤雲
+            createCityTagCloud: () => {
+                const tagContainer = document.querySelector(AppConfig.selectors.tagContainer);
+                const timeWrapper = document.querySelector(AppConfig.selectors.timeWrapper);
+                const bodyRect = document.body.getBoundingClientRect();
+                const timeWrapperRect = timeWrapper.getBoundingClientRect();
+                
+                tagContainer.innerHTML = '';
+
+                const safeAreas = [
+                    { xMin: AppConfig.constants.safeAreaPadding, xMax: bodyRect.width - AppConfig.constants.safeAreaPadding, yMin: AppConfig.constants.safeAreaPadding, yMax: timeWrapperRect.top - AppConfig.constants.safeAreaMargin },
+                    { xMin: AppConfig.constants.safeAreaPadding, xMax: bodyRect.width - AppConfig.constants.safeAreaPadding, yMin: timeWrapperRect.bottom + AppConfig.constants.safeAreaMargin, yMax: bodyRect.height - AppConfig.constants.safeAreaPadding },
+                    { xMin: AppConfig.constants.safeAreaPadding, xMax: timeWrapperRect.left - AppConfig.constants.safeAreaMargin, yMin: AppConfig.constants.safeAreaPadding, yMax: bodyRect.height - AppConfig.constants.safeAreaPadding },
+                    { xMin: timeWrapperRect.right + AppConfig.constants.safeAreaMargin, xMax: bodyRect.width - AppConfig.constants.safeAreaPadding, yMin: AppConfig.constants.safeAreaPadding, yMax: bodyRect.height - AppConfig.constants.safeAreaPadding }
+                ];
+
+                const validSafeAreas = safeAreas.filter(area => area.xMax > area.xMin && area.yMax > area.yMin);
+                const existingTagRects = [];
+
+                // 建立單一城市標籤
+                const createTag = (cityItem) => {
+                    const cityName = cityItem[AppState.userLang];
+                    const tag = document.createElement('span');
+                    
+                    tag.className = `city-tag ${cityName === AppState.activeCity.name ? 'active' : ''}`;
+                    tag.textContent = cityName;
+                    tag.dataset.timezone = cityItem.timezone;
+                    tag.dataset.cityName = cityName;
+                    
+                    const fontSize = Utils.getRandomFontSize();
+                    const rotate = Utils.getRandomRotation();
+                    
+                    tag.style.fontSize = `${fontSize}px`;
+                    tag.style.transform = `rotate(${rotate}deg)`;
+                    tag.style.setProperty('--rotate', `${rotate}deg`);
+                    tag.style.opacity = tag.classList.contains('active') ? 1 : 0.7;
+
+                    tagContainer.appendChild(tag);
+                    const tagRect = tag.getBoundingClientRect();
+
+                    let retryCount = 0;
+                    let pos = null;
+                    let isPosValid = false;
+
+                    while (retryCount < AppConfig.constants.tagMaxRetry && !isPosValid) {
+                        const randomArea = validSafeAreas[Math.floor(Math.random() * validSafeAreas.length)];
+                        const posX = Utils.getRandom(randomArea.xMin, randomArea.xMax - tagRect.width);
+                        const posY = Utils.getRandom(randomArea.yMin, randomArea.yMax - tagRect.height);
+
+                        const currentRect = {
+                            left: posX,
+                            top: posY,
+                            right: posX + tagRect.width,
+                            bottom: posY + tagRect.height
+                        };
+
+                        const isOverlap = existingTagRects.some(rect => 
+                            Utils.isOverlap(currentRect, rect, AppConfig.constants.tagSpacing)
+                        );
+
+                        if (!isOverlap) {
+                            pos = {
+                                x: posX - tagContainer.getBoundingClientRect().left,
+                                y: posY - tagContainer.getBoundingClientRect().top
+                            };
+                            isPosValid = true;
+                            existingTagRects.push(currentRect);
+                        }
+
+                        retryCount++;
+                    }
+
+                    if (pos) {
+                        tag.style.left = `${pos.x}px`;
+                        tag.style.top = `${pos.y}px`;
+                        
+                        // 標籤點擊事件 - 切換當前城市
+                        tag.addEventListener('click', () => {
+                            document.querySelectorAll('.city-tag').forEach(t => t.classList.remove('active'));
+                            tag.classList.add('active');
+                            
+                            AppState.activeCity = {
+                                name: tag.dataset.cityName,
+                                timezone: tag.dataset.timezone
+                            };
+                            
+                            document.querySelector(AppConfig.selectors.status).textContent =
+                                `${AppState.lang.currentCity}: ${AppState.activeCity.name} | ${AppState.serverBaseTime ? AppState.lang.timeSynced : AppState.lang.systemTime}`;
+                            
+                            UIService.updateClock();
+                        });
+                    } else {
+                        tagContainer.removeChild(tag);
+                    }
+
+                    return tag;
+                };
+
+                AppConfig.cityTimezones.forEach(createTag);
+            },
+            // 更新時鐘介面
+            updateClock: () => {
+                const { timezone, name } = AppState.activeCity;
+                
+                const timeFull = TimeService.formatFullTime(timezone);
+                const timeTitle = TimeService.formatTitleTime(timezone);
+                const dateStr = TimeService.formatDate(timezone);
+                const timezoneText = TimeService.getTimezoneText(timezone);
+
+                document.querySelector(AppConfig.selectors.clock).textContent = timeFull;
+                document.querySelector(AppConfig.selectors.date).textContent = dateStr;
+                document.querySelector(AppConfig.selectors.timezone).textContent = timezoneText;
+
+                const titleTemplate = {
+                    'zh-HK': `${timeTitle} | ${name}${AppState.lang.timeSuffix}`,
+                    'zh-CN': `${timeTitle} | ${name}${AppState.lang.timeSuffix}`,
+                    'en-US': `${timeTitle} | ${name} ${AppState.lang.timeSuffix}`
+                };
+                document.title = titleTemplate[AppState.userLang];
+            },
+            // 初始化UI狀態
+            initUI: () => {
+                const statusEl = document.querySelector(AppConfig.selectors.status);
+                const calibrationEl = document.querySelector(AppConfig.selectors.calibration);
+                
+                statusEl.textContent = `${AppState.lang.currentCity}: ${AppState.activeCity.name} | ${AppState.lang.systemTime}`;
+                calibrationEl.textContent = AppState.lang.syncingServerTime;
+
+                UIService.updateClock();
+                setInterval(UIService.updateClock, 1000);
+                
+                setTimeout(UIService.createCityTagCloud, 200);
+                window.addEventListener('resize', () => setTimeout(UIService.createCityTagCloud, 200));
+                
+                setTimeout(TimeService.syncServerTime, 500);
+                setInterval(TimeService.syncServerTime, 10 * 60 * 1000);
+            }
+        };
+
+        const App = {
+            init: () => {
+                AppState.userLang = Utils.detectLanguage();
+                AppState.lang = AppConfig.lang[AppState.userLang];
+                document.documentElement.lang = AppState.userLang;
+
+                AppState.activeCity = {
+                    name: AppState.lang.localCity,
+                    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+                };
+
+                if (['complete', 'interactive'].includes(document.readyState)) {
+                    UIService.initUI();
+                } else {
+                    document.addEventListener('DOMContentLoaded', UIService.initUI);
+                }
+            }
+        };
+
+        App.init();
+    </script>
+</body>
+</html>
