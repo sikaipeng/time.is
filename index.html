@@ -178,7 +178,9 @@
         </div>
     </div>
 
-    <script>
+    <script type="module">
+        import {ServerClock, ServerTime} from '/lib/index.esm.js';
+        
         const AppConfig = {
             lang: {
                 'zh-HK': {
@@ -257,10 +259,7 @@
                 highRatio: 0.15,
                 firstLoadRatio: 0.10
             },
-            api: {
-                timestampUrl: 'https://lamhoi.co.uk/timestamp',
-                timeout: 5000
-            },
+            timestampUrl: 'https://lamhoi.co.uk/timestamp',
             selectors: {
                 tagContainer: '#tagContainer',
                 clock: '#clock',
@@ -321,25 +320,15 @@
         // 應用狀態 - 集中管理全域狀態
         const AppState = {
             activeCity: null,
-            serverBaseTime: null,
-            localBaseTime: null,
-            localBasePerformanceTime: null,
-            isFirstLoad: true,
             userLang: null,
             lang: null,
-            pageInitPerformanceTime: performance.now(),
             pageInitLocalTime: Date.now()
         };
 
         // 時間服務 - 處理所有時間相關邏輯
         const TimeService = {
-            // 取得當前時間（優先使用伺服器同步時間，否則使用本地時間）
             getCurrentTime: () => {
-                if (AppState.serverBaseTime && AppState.localBaseTime && AppState.localBasePerformanceTime) {
-                    const timeElapsed = performance.now() - AppState.localBasePerformanceTime;
-                    return new Date(AppState.serverBaseTime + timeElapsed);
-                }
-                return new Date();
+                return ServerTime.getDate();
             },
             // 格式化完整時間（時:分:秒）
             formatFullTime: (timezone) => {
@@ -399,53 +388,21 @@
 
                 return `${timezone} | ${offsetStr}`;
             },
-            // 取得網路延遲補償比例
-            getCompensationRatio: (latency) => 
-                latency <= AppConfig.compensation.threshold
-                    ? AppConfig.compensation.lowRatio
-                    : AppConfig.compensation.highRatio,
-            // 同步伺服器時間
+          
             syncServerTime: async () => {
-                const requestStartTime = Date.now();
                 const statusEl = document.querySelector(AppConfig.selectors.status);
                 const calibrationEl = document.querySelector(AppConfig.selectors.calibration);
-
-                try {
-                    const response = await Utils.withTimeout(
-                        fetch(AppConfig.api.timestampUrl, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({}),
-                            cache: 'no-store'
-                        }),
-                        AppConfig.api.timeout,
-                        AppState.lang.syncTimeout
-                    );
-
-                    if (!response.ok) throw new Error(`${AppState.lang.httpError}: ${response.status}`);
-                    const data = await response.json();
-                    if (!data.timestamp) throw new Error(AppState.lang.missingTimestamp);
-
-                    const rawServerTime = Math.round(parseFloat(data.timestamp) * 1000);
-                    const roundTripLatency = Date.now() - requestStartTime;
-                    const ratio = AppState.isFirstLoad 
-                        ? AppConfig.compensation.firstLoadRatio 
-                        : TimeService.getCompensationRatio(roundTripLatency);
-                    const compensation = roundTripLatency * ratio;
-
-                    AppState.serverBaseTime = rawServerTime + compensation;
-                    AppState.localBaseTime = Date.now();
-                    AppState.localBasePerformanceTime = performance.now();
-                    AppState.isFirstLoad = false;
-
+                
+                await ServerClock.sync(AppConfig.timestampUrl);
+                
+                if (ServerClock.isSynced) {
                     statusEl.textContent = `${AppState.lang.currentCity}: ${AppState.activeCity.name} | ${AppState.lang.timeSynced}`;
                     calibrationEl.textContent = AppState.lang.syncSuccess;
-                } catch (error) {
-                    statusEl.textContent = `${AppState.lang.currentCity}: ${AppState.activeCity.name} | ${AppState.lang.systemTime}`;
-                    calibrationEl.textContent = `${AppState.lang.syncFailed}: ${error.message}`;
-                } finally {
-                    UIService.updateClock();
                 }
+                else {
+                    calibrationEl.textContent = AppState.lang.syncFailed;
+                }
+                UIService.updateClock();
             }
         };
 
@@ -586,7 +543,6 @@
                 window.addEventListener('resize', () => setTimeout(UIService.createCityTagCloud, 200));
                 
                 setTimeout(TimeService.syncServerTime, 500);
-                setInterval(TimeService.syncServerTime, 10 * 60 * 1000);
             }
         };
 
