@@ -2,7 +2,7 @@
 <html lang="zh-HK">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>00:00 | 本地時間</title>
     <link rel="icon" href="favicon.svg" type="image/svg+xml">
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" type="image/png">
@@ -395,7 +395,7 @@
                 const statusEl = document.querySelector(AppConfig.selectors.status);
                 const calibrationEl = document.querySelector(AppConfig.selectors.calibration);
                 
-                await ServerClock.sync(AppConfig.timestampUrl);
+                await ServerClock.sync(AppConfig.timestampUrl).autoUpdate();
                 
                 if (ServerClock.isSynced) {
                     statusEl.textContent = `${AppState.lang.currentCity}: ${AppState.activeCity.name} | ${AppState.lang.timeSynced}`;
